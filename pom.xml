@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" >
+ <dependencies>
+    <dependency>
+      <groupId>com.datastax.cassandra</groupId>
+      <artifactId>cassandra-driver-core</artifactId>
+      <version>2.0.8</version>
+    </dependency>
+ </dependencies>
+ <version>0.0</version>
+ <groupId>com.datomic</groupId>
+ <name>cas-sandra</name>
+ <artifactId>cas-sandra</artifactId>
+ <properties>
+  <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+ </properties>
+ <modelVersion>4.0.0</modelVersion>
+ <build>
+   <pluginManagement>
+     <plugins>
+       <plugin>
+         <groupId>org.apache.maven.plugins</groupId>
+         <artifactId>maven-compiler-plugin</artifactId>
+         <version>3.0</version>
+         <configuration>
+           <!-- put your configurations here -->
+         </configuration>
+       </plugin>
+    </plugins>
+   </pluginManagement>
+  <sourceDirectory>src/java</sourceDirectory>
+  <resources>
+   <resource>
+    <directory>src/resources</directory>
+   </resource>
+  </resources>
+ </build>
+ <repositories>
+ <repository>
+   <id>Sonatype</id>
+   <name>Sonatype Release</name>
+   <url>http://oss.sonatype.org/content/repositories/releases</url>
+   <releases>
+    <enabled>true</enabled>
+   </releases>
+   <snapshots>
+    <enabled>false</enabled>
+   </snapshots>
+  </repository>
+ </repositories>
+</project>
