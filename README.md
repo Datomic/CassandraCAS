@@ -29,7 +29,7 @@ thread will pause for msec between operations (or pass 0 msec for no pause).
 The following example is enough load to force some write retries on my
 local dev box:
 
-   java com.datomic.CassandraCAS 127.0.0.1 9042 race 5 0 500
+    java com.datomic.CassandraCAS 127.0.0.1 9042 race 5 0 500
 
 ## Copyright
 
