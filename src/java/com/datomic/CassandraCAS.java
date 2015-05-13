@@ -48,19 +48,19 @@ public class CassandraCAS implements Closeable {
 
         @Override
         public RetryDecision onReadTimeout(Statement statement, ConsistencyLevel cl, int i, int i1, boolean b, int retries) {
-            return (retries == 3) ? RetryDecision.rethrow() : RetryDecision.retry(cl);
+            return (retries == 3) ? RetryDecision.rethrow() : RetryDecision.retry(statement.getConsistencyLevel());
         }
 
         @Override
         public RetryDecision onWriteTimeout(Statement statement, ConsistencyLevel cl, WriteType writeType, int i, int i1, int retries) {
             System.out.println(retries);
             System.out.println(cl);
-            return (retries == 3) ? RetryDecision.rethrow() : RetryDecision.retry(cl);
+            return (retries == 3) ? RetryDecision.rethrow() : RetryDecision.retry(statement.getConsistencyLevel());
         }
 
         @Override
         public RetryDecision onUnavailable(Statement statement, ConsistencyLevel cl, int i, int i1, int retries) {
-            return (retries == 3) ? RetryDecision.rethrow() : RetryDecision.retry(cl);
+            return (retries == 3) ? RetryDecision.rethrow() : RetryDecision.retry(statement.getConsistencyLevel());
         }
     }
     public static final RetryPolicy retryPolicy = new ThreeRetryPolicy();
@@ -177,6 +177,5 @@ public class CassandraCAS implements Closeable {
             driver.createRev();
             driver.race(Integer.parseInt(args[3]), Integer.parseInt(args[4]), Long.parseLong(args[5]));
         }
-        driver.close();
     }
 }
