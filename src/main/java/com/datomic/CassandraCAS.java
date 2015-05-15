@@ -48,19 +48,19 @@ public class CassandraCAS implements Closeable {
 
         @Override
         public RetryDecision onReadTimeout(Statement statement, ConsistencyLevel cl, int i, int i1, boolean b, int retries) {
-            return (retries == 3) ? RetryDecision.rethrow() : RetryDecision.retry(cl);
+            return (retries == 3) ? RetryDecision.rethrow() : RetryDecision.retry(statement.getConsistencyLevel());
         }
 
         @Override
         public RetryDecision onWriteTimeout(Statement statement, ConsistencyLevel cl, WriteType writeType, int i, int i1, int retries) {
-            System.out.println(retries);
-            System.out.println(cl);
-            return (retries == 3) ? RetryDecision.rethrow() : RetryDecision.retry(cl);
+            System.out.println(";; {:statement-cl " + statement.getConsistencyLevel()  +
+                               ", :callback-cl " + cl + " }");
+            return (retries == 3) ? RetryDecision.rethrow() : RetryDecision.retry(statement.getConsistencyLevel());
         }
 
         @Override
         public RetryDecision onUnavailable(Statement statement, ConsistencyLevel cl, int i, int i1, int retries) {
-            return (retries == 3) ? RetryDecision.rethrow() : RetryDecision.retry(cl);
+            return (retries == 3) ? RetryDecision.rethrow() : RetryDecision.retry(statement.getConsistencyLevel());
         }
     }
     public static final RetryPolicy retryPolicy = new ThreeRetryPolicy();
@@ -139,6 +139,111 @@ public class CassandraCAS implements Closeable {
             new Thread(new Runnable() {
                 @Override
                 public void run() {
+                long prev = readRev();
+                final long pid = pid();
+                final long tid = Thread.currentThread().getId();
+                try {
+                    if (pause != 0) Thread.sleep(pause);
+                    while (prev < dest) {
+                        String result = casRev(prev);
+                        queue.put(new Object[]{result, prev, prev + 1, tid, pid});
+                        if (":success".equals(result)) {
+                            prev = prev + 1;
+                        } else {
+                            prev = readRev();
+                        }
+                    }
+                    queue.put(queue);
+                } catch (Exception e) {
+                    try {
+                        queue.put(queue);
+                    } catch (InterruptedException i) {
+                        i.printStackTrace();
+                    }
+                    e.printStackTrace();
+                }
+                }
+            }).start();
+        }
+    }
+
+    public static void raceSessions(final String host, final int port, final int threads, final int pause, final long dest) {
+        final BlockingQueue queue = new LinkedBlockingQueue();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                Object o = null;
+                try {
+                    while (true) {
+                        o = queue.take();
+                        if (o == queue) break;
+                        print(o);
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+        for (int i = 0; i < threads; i++) {
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    CassandraCAS driver = new CassandraCAS(host, port);
+                    long prev = driver.readRev();
+                    final long pid = pid();
+                    final long tid = Thread.currentThread().getId();
+                    try {
+                        if (pause != 0) Thread.sleep(pause);
+                        while (prev < dest) {
+                            String result = driver.casRev(prev);
+                            queue.put(new Object[]{result, prev, prev + 1, tid, pid});
+                            if (":success".equals(result)) {
+                                prev = prev + 1;
+                            } else {
+                                prev = driver.readRev();
+                            }
+                        }
+                        queue.put(queue);
+                    } catch (Exception e) {
+                        try {
+                            queue.put(queue);
+                        } catch (InterruptedException i) {
+                            i.printStackTrace();
+                        }
+                        e.printStackTrace();
+                    } finally {
+                        try {
+                            driver.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }).start();
+        }
+    }
+    // like race, but calls thread.run so everything serializes on main thread
+    public void relay(final int threads, final int pause, final long dest) {
+        final BlockingQueue queue = new LinkedBlockingQueue();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                Object o = null;
+                try {
+                    while (true) {
+                        o = queue.take();
+                        if (o == queue) break;
+                        print(o);
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+        for (int i = 0; i < threads; i++) {
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
                     long prev = readRev();
                     final long pid = pid();
                     final long tid = Thread.currentThread().getId();
@@ -154,15 +259,40 @@ public class CassandraCAS implements Closeable {
                             }
                         }
                         queue.put(queue);
-                    } catch (InterruptedException e) {
+                    } catch (Exception e) {
+                        try {
+                            queue.put(queue);
+                        } catch (InterruptedException i) {
+                            i.printStackTrace();
+                        }
                         e.printStackTrace();
                     }
                 }
-            }).start();
+            }).run();
+        }
+    }
+    public void solo(final int pause, final long dest) {
+        long prev = readRev();
+        final long pid = pid();
+        final long tid = Thread.currentThread().getId();
+        try {
+            if (pause != 0) Thread.sleep(pause);
+            Thread.sleep(10);
+            while (prev < dest) {
+                String result = casRev(prev);
+                print(new Object[]{result, prev, prev + 1, tid, pid});
+                if (":success".equals(result)) {
+                    prev = prev + 1;
+                } else {
+                    prev = readRev();
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws Exception {
         CassandraCAS driver = new CassandraCAS(args[0], Integer.parseInt(args[1]));
         if (args[2].equals("read"))
             System.out.println(driver.readRev());
@@ -176,6 +306,18 @@ public class CassandraCAS implements Closeable {
         if (args[2].equals("race")) {
             driver.createRev();
             driver.race(Integer.parseInt(args[3]), Integer.parseInt(args[4]), Long.parseLong(args[5]));
+        }
+        if (args[2].equals("relay")) {
+            driver.createRev();
+            driver.relay(Integer.parseInt(args[3]), Integer.parseInt(args[4]), Long.parseLong(args[5]));
+        }
+        if (args[2].equals("solo")) {
+            driver.createRev();
+            driver.solo(Integer.parseInt(args[3]), Long.parseLong(args[4]));
+        }
+        if (args[2].equals("raceSessions")) {
+            driver.createRev();
+            driver.raceSessions(args[0], Integer.parseInt(args[1]), Integer.parseInt(args[3]), Integer.parseInt(args[4]), Long.parseLong(args[5]));
         }
         driver.close();
     }
