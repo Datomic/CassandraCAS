@@ -31,6 +31,14 @@ local dev box:
 
     java com.datomic.CassandraCAS 127.0.0.1 9042 race 5 0 500
 
+## Running the Tests
+
+Get Cassandra running locally on 127.0.0.1, 2, 3.
+[CCM](http://www.datastax.com/dev/blog/ccm-a-development-tool-for-creating-local-cassandra-clusters)
+is great for this
+
+    mvn test
+ 
 ## Java Retry Bug
 
 * When a write timeout occurs, the Java driver can be configured to call a `RetryPolicy` to allow clients flexibility in error handling.
