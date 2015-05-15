@@ -31,6 +31,16 @@ local dev box:
 
     java com.datomic.CassandraCAS 127.0.0.1 9042 race 5 0 500
 
+## Java Retry Bug
+
+* When a write timeout occurs, the Java driver can be configured to call a `RetryPolicy` to allow clients flexibility in error handling.
+* The `onWriteTimeout` method is passed a single `ConsistencyLevel` argument, described as "the original consistency level of the write that timed out."  This looks a bit sketchy since writes can set two kinds of consistency levels (CL and SCL), but the retry handler only gets informed about one.
+* When a write timeout occurs on a `SCL=SERIAL` write, the consistency level passed to onWriteTimeout is `SERIAL`.  Retrying with the level given results in an `InvalidQueryException`.
+
+In short, a query that is valid on initial try is deemed invalid on retry.  You can usually see this by running with the following settings
+
+    java com.datomic.CassandraCAS 127.0.0.1 9042 race 5 0 500
+
 ## Copyright
 
 Copyright (c) Cognitect, Inc. All rights reserved.
