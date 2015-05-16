@@ -44,6 +44,27 @@ public class CassandraCAS implements Closeable {
         System.out.println("]");
     }
 
+    // retry policy that follows the docs (broken)
+    public static class DocumentedRetryPolicy implements RetryPolicy {
+
+        @Override
+        public RetryDecision onReadTimeout(Statement statement, ConsistencyLevel cl, int i, int i1, boolean b, int retries) {
+            return (retries == 3) ? RetryDecision.rethrow() : RetryDecision.retry(cl);
+        }
+
+        @Override
+        public RetryDecision onWriteTimeout(Statement statement, ConsistencyLevel cl, WriteType writeType, int i, int i1, int retries) {
+            System.out.println(";; {:statement-cl " + statement.getConsistencyLevel()  +
+                    ", :callback-cl " + cl + " }");
+            return (retries == 3) ? RetryDecision.rethrow() : RetryDecision.retry(cl);
+        }
+
+        @Override
+        public RetryDecision onUnavailable(Statement statement, ConsistencyLevel cl, int i, int i1, int retries) {
+            return (retries == 3) ? RetryDecision.rethrow() : RetryDecision.retry(cl);
+        }
+    }
+
     public static class ThreeRetryPolicy implements RetryPolicy {
 
         @Override
@@ -63,7 +84,16 @@ public class CassandraCAS implements Closeable {
             return (retries == 3) ? RetryDecision.rethrow() : RetryDecision.retry(statement.getConsistencyLevel());
         }
     }
-    public static final RetryPolicy retryPolicy = new ThreeRetryPolicy();
+    public static RetryPolicy configuredRetryPolicy() {
+        if ("Documented".equals(System.getProperty("com.datomic.CassandraCASRetryPolicy"))) {
+            System.out.println(";; Using DocumentedRetryPolicy (broken)");
+            return new DocumentedRetryPolicy();
+        } else {
+            System.out.println(";; Using ThreeRetryPolicy");
+            return new ThreeRetryPolicy();
+        }
+    }
+    public static final RetryPolicy retryPolicy = configuredRetryPolicy();
 
     public final Cluster cluster;
     public final Session session;
@@ -76,6 +106,7 @@ public class CassandraCAS implements Closeable {
         session.close();
         cluster.close();
     }
+
 
     public CassandraCAS(String host, int port) {
         cluster = createCluster(host, port);
