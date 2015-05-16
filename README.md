@@ -15,13 +15,19 @@ From Cassandra cqlsh:
       val blob
     );
 
-Start a 3+ node cassandra cluster.
+Start a 3+ node cassandra cluster.  Get Cassandra running locally on 127.0.0.1, 2, 3.
+[CCM](http://www.datastax.com/dev/blog/ccm-a-development-tool-for-creating-local-cassandra-clusters)
+is great for this.
+
+## Building
+
+    mvn clean package
 
 ## Running 
 
 The program
 
-    java com.datomic.CassandraCAS {host} {port} race {nthreads} {msec} {target}
+    java -jar target/CassandraCAS-0.0.jar {host} {port} raceSessions {nthreads} {msec} {target}
 
 will start nthreads racing to CAS a counter from 0 up to target.  Each
 thread will pause for msec between operations (or pass 0 msec for no pause).
@@ -29,16 +35,8 @@ thread will pause for msec between operations (or pass 0 msec for no pause).
 The following example is enough load to force some write retries on my
 local dev box:
 
-    java com.datomic.CassandraCAS 127.0.0.1 9042 race 5 0 500
+    java -jar target/CassandraCAS-0.0.jar 127.0.0.1 9042 raceSessions 5 0 500
 
-## Running the Tests
-
-Get Cassandra running locally on 127.0.0.1, 2, 3.
-[CCM](http://www.datastax.com/dev/blog/ccm-a-development-tool-for-creating-local-cassandra-clusters)
-is great for this
-
-    mvn test
- 
 ## Java Retry Bug
 
 * When a write timeout occurs, the Java driver can be configured to call a `RetryPolicy` to allow clients flexibility in error handling.
@@ -47,7 +45,7 @@ is great for this
 
 In short, a query that is valid on initial try is deemed invalid on retry.  You can usually see this by running with the following settings
 
-    java com.datomic.CassandraCAS 127.0.0.1 9042 race 5 0 500
+    java -Dcom.datomic.CassandraCASRetryPolicy=Documented -jar target/CassandraCAS-0.0.jar 127.0.0.1 9042 raceSessions 5 0 500
 
 ## Copyright
 
